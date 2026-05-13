@@ -1,79 +1,76 @@
-# Niroban — Rev 1B
+# Niroban — Rev 1C
 
-Persian tender and inquiry monitoring dashboard for Gostaresh Energy.
+Persian tender monitoring app for Gostaresh Energy.
 
-## Rev 1B adds
+## Rev 1C purpose
 
-- Supabase email/password login on the frontend
-- Private dashboard after login only
-- Backend API protection with Supabase Auth access token
-- Allowed email restriction with `ALLOWED_EMAILS`
-- Logout button
+Rev 1C adds the real daily monitoring workflow:
 
-## Local backend
+- Daily check log for a private tender website
+- Manual registration of daily scan result
+- Scan status: success, failed, login required, captcha required
+- Target opportunity types: tenders, price inquiry only, inquiries
+- Target keywords: relay, feeder, substation, capacitor
+- Target regions: all Iran, with priority for south of Iran and Semnan
+- Protected backend API through Supabase Auth
 
-```bash
+## Backend
+
+```powershell
 cd backend
-python -m venv venv
-.\\venv\\Scripts\\Activate.ps1
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python -m uvicorn main:app --reload --port 8000
 ```
 
-`backend/.env`:
+Required backend variables:
 
 ```env
-SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_ROLE_OR_SB_SECRET_KEY
+SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
+SUPABASE_SERVICE_KEY=sb_secret_...
 FRONTEND_URL=http://localhost:5173
-ALLOWED_EMAILS=your-email@example.com
+ALLOWED_EMAILS=alireza.yavarian@gmail.com,kiamarskaveh@yahoo.com
 ```
 
-## Local frontend
+## Frontend
 
-```bash
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-`frontend/.env.local`:
+Required frontend variables:
 
 ```env
 VITE_API_URL=http://localhost:8000
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
-```
-
-## Supabase Auth setup
-
-Create an Auth user in Supabase for the allowed email. Use the same email in Railway `ALLOWED_EMAILS`.
-
-## Railway variables
-
-```env
-SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_ROLE_OR_SB_SECRET_KEY
-FRONTEND_URL=https://niroban.vercel.app
-ALLOWED_EMAILS=your-email@example.com
-```
-
-## Vercel variables
-
-```env
-VITE_API_URL=https://niroban-production.up.railway.app
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+VITE_SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
 ```
 
 ## Deployment
 
-After changing files:
+Railway backend:
 
-```bash
-git add .
-git commit -m "Rev 1B add private login"
-git push origin main
+```env
+SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
+SUPABASE_SERVICE_KEY=sb_secret_...
+FRONTEND_URL=https://niroban.vercel.app
+ALLOWED_EMAILS=alireza.yavarian@gmail.com,kiamarskaveh@yahoo.com
 ```
 
-Then redeploy Railway and Vercel if they do not auto-deploy.
+Vercel frontend:
+
+```env
+VITE_API_URL=https://niroban-production.up.railway.app
+VITE_SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
+```
+
+## Revision table
+
+| Rev | Date | Description |
+|---|---:|---|
+| Rev 1A | 2026-05-13 | Manual Persian tender dashboard |
+| Rev 1B | 2026-05-13 | Private login and protected backend API |
+| Rev 1C | 2026-05-13 | Daily monitoring workflow and scan logs |

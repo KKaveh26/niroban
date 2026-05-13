@@ -1,7 +1,7 @@
 {
   "name": "niroban-frontend",
   "private": true,
-  "version": "1.0.0-rev1a",
+  "version": "1.0.0-rev1c",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.4",
+    "@supabase/supabase-js": "latest",
     "@vitejs/plugin-react": "latest",
+    "vite": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "vite": "latest"
-  }
+    "react-dom": "latest"
+  },
+  "devDependencies": {}
 }

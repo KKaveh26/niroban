@@ -467,3 +467,180 @@ tr:last-child td {
 .logout-button {
   width: 100%;
 }
+
+
+/* Rev 1C daily monitoring additions */
+.hero-card-rev1c {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.9));
+}
+
+.monitoring-panel {
+  margin-bottom: 22px;
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.monitoring-header {
+  align-items: center;
+}
+
+.scan-status-badge {
+  min-width: min(100%, 280px);
+  border-radius: 20px;
+  padding: 15px 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.scan-status-badge span {
+  display: block;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.scan-status-badge strong {
+  display: block;
+  color: #0f172a;
+  line-height: 1.7;
+}
+
+.scan-status-success {
+  background: #f0fdf4;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.scan-status-failed,
+.scan-status-login_required,
+.scan-status-captcha_required {
+  background: #fff7ed;
+  border-color: rgba(249, 115, 22, 0.35);
+}
+
+.target-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.target-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.target-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.target-card strong {
+  color: #0f172a;
+  line-height: 1.9;
+}
+
+.rev1c-grid {
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.95fr);
+}
+
+.region-priority-box,
+.guide-panel ol {
+  margin-top: 22px;
+}
+
+.region-priority-box h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.region-priority-box ul,
+.daily-checklist {
+  margin-bottom: 0;
+  padding-right: 22px;
+  color: #334155;
+  line-height: 2;
+  font-weight: 800;
+}
+
+.scan-log-panel {
+  margin-bottom: 22px;
+}
+
+.scan-log-list {
+  display: grid;
+  gap: 12px;
+}
+
+.scan-log-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.scan-log-item strong {
+  display: block;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.scan-log-item span {
+  color: #475569;
+  font-weight: 800;
+}
+
+.scan-log-item p {
+  margin: 8px 0 0;
+  color: #64748b;
+  line-height: 1.8;
+}
+
+.scan-log-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 300px;
+}
+
+.scan-log-metrics span,
+.scan-log-metrics small {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 900;
+}
+
+.scan-log-metrics small {
+  background: white;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 1100px) {
+  .target-grid,
+  .rev1c-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .monitoring-header,
+  .scan-log-item {
+    flex-direction: column;
+  }
+
+  .scan-log-metrics {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+}

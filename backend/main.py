@@ -24,11 +24,13 @@ OpportunityStatus = Literal["new", "reviewed", "relevant", "not_relevant", "appl
 RegionPriority = Literal["south", "semnan", "other"]
 RuleOpportunityType = Literal["tender", "price_inquiry", "inquiry", "all"]
 RuleRegionPriority = Literal["south", "semnan", "other", "all"]
+ScanMode = Literal["manual", "semi_automatic", "automatic"]
+ScanStatus = Literal["pending", "success", "failed", "login_required", "captcha_required"]
 
 app = FastAPI(
     title="Niroban API",
     description="Persian tender monitoring API for electrical companies.",
-    version="1.0.0-rev1b",
+    version="1.0.0-rev1c",
 )
 
 app.add_middleware(
@@ -136,12 +138,41 @@ class SearchRuleCreate(BaseModel):
     active: bool = True
 
 
+class ScanLogCreate(BaseModel):
+    customer_name: str = Field(default="Gostaresh Energy")
+    scan_date: date = Field(default_factory=date.today)
+    source_name: str = Field(default="Private Tender Website")
+    source_url: Optional[str] = None
+    scan_mode: ScanMode = "manual"
+    status: ScanStatus = "success"
+    checked_opportunity_types: list[str] = Field(default_factory=lambda: ["tender", "price_inquiry", "inquiry"])
+    checked_keywords: list[str] = Field(default_factory=lambda: ["relay", "feeder", "substation", "capacitor"])
+    checked_regions: list[str] = Field(default_factory=lambda: ["south", "semnan", "all_iran"])
+    total_found: int = 0
+    new_opportunities: int = 0
+    relevant_opportunities: int = 0
+    notes: Optional[str] = None
+    finished_at: Optional[datetime] = None
+
+
+class ScanLogUpdate(BaseModel):
+    source_name: Optional[str] = None
+    source_url: Optional[str] = None
+    scan_mode: Optional[ScanMode] = None
+    status: Optional[ScanStatus] = None
+    total_found: Optional[int] = None
+    new_opportunities: Optional[int] = None
+    relevant_opportunities: Optional[int] = None
+    notes: Optional[str] = None
+    finished_at: Optional[datetime] = None
+
+
 @app.get("/")
 def root() -> dict[str, str]:
     return {
         "app": "Niroban API",
         "status": "running",
-        "revision": "Rev 1B",
+        "revision": "Rev 1C",
     }
 
 
@@ -301,3 +332,77 @@ async def create_search_rule(payload: SearchRuleCreate, current_user: dict = Dep
 
     created = response.json()
     return created[0] if created else {}
+
+
+@app.get("/scan-logs")
+async def list_scan_logs(
+    limit: int = Query(default=10, ge=1, le=50),
+    status: Optional[ScanStatus] = None,
+    current_user: dict = Depends(require_user),
+) -> list[dict]:
+    params: dict[str, str] = {
+        "select": "*",
+        "order": "scan_date.desc,created_at.desc",
+        "limit": str(limit),
+    }
+    if status:
+        params["status"] = f"eq.{status}"
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(
+            supabase_table_url("tender_scan_logs"),
+            headers=supabase_headers(),
+            params=params,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    return response.json()
+
+
+@app.post("/scan-logs", status_code=201)
+async def create_scan_log(payload: ScanLogCreate, current_user: dict = Depends(require_user)) -> dict:
+    data = payload.model_dump(mode="json", exclude_none=True)
+    if data.get("status") in {"success", "failed", "login_required", "captcha_required"} and not data.get("finished_at"):
+        data["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(
+            supabase_table_url("tender_scan_logs"),
+            headers=supabase_headers(prefer_return=True),
+            json=data,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    created = response.json()
+    return created[0] if created else {}
+
+
+@app.patch("/scan-logs/{scan_log_id}")
+async def update_scan_log(
+    scan_log_id: str,
+    payload: ScanLogUpdate,
+    current_user: dict = Depends(require_user),
+) -> dict:
+    data = payload.model_dump(mode="json", exclude_none=True)
+    if data.get("status") in {"success", "failed", "login_required", "captcha_required"} and not data.get("finished_at"):
+        data["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.patch(
+            supabase_table_url("tender_scan_logs"),
+            headers=supabase_headers(prefer_return=True),
+            params={"id": f"eq.{scan_log_id}"},
+            json=data,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    updated = response.json()
+    if not updated:
+        raise HTTPException(status_code=404, detail="Scan log not found")
+    return updated[0]

@@ -71,3 +71,14 @@ export function deleteOpportunity(id) {
 export function listSearchRules() {
   return request('/search-rules');
 }
+
+export function listScanLogs(limit = 10) {
+  return request(`/scan-logs?limit=${limit}`);
+}
+
+export function createScanLog(data) {
+  return request('/scan-logs', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

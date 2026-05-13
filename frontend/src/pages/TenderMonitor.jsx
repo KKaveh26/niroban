@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   createOpportunity,
+  createScanLog,
   deleteOpportunity,
   getApiUrl,
   listOpportunities,
+  listScanLogs,
   listSearchRules,
   updateOpportunity,
 } from '../services/api.js';
@@ -29,6 +31,24 @@ const regionLabels = {
   other: 'سایر مناطق',
 };
 
+const scanStatusLabels = {
+  pending: 'در انتظار بررسی',
+  success: 'موفق',
+  failed: 'ناموفق',
+  login_required: 'نیازمند ورود دستی',
+  captcha_required: 'نیازمند کپچا / تأیید دستی',
+};
+
+const scanModeLabels = {
+  manual: 'دستی',
+  semi_automatic: 'نیمه‌خودکار',
+  automatic: 'خودکار',
+};
+
+const targetOpportunityTypes = ['مناقصه‌ها', 'استعلام قیمت', 'استعلام‌ها'];
+const targetKeywords = ['رله', 'فیدر', 'پست برق', 'خازن', 'رله حفاظتی', 'بانک خازنی'];
+const targetRegions = ['سراسر ایران', 'جنوب کشور', 'سمنان'];
+
 const defaultForm = {
   title: '',
   opportunity_type: 'tender',
@@ -43,16 +63,51 @@ const defaultForm = {
   status: 'new',
 };
 
-function normalizeFormPayload(form) {
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const defaultScanForm = {
+  scan_date: todayIso(),
+  source_name: 'سامانه خصوصی مناقصات و استعلام‌ها',
+  source_url: '',
+  scan_mode: 'manual',
+  status: 'success',
+  total_found: 0,
+  new_opportunities: 0,
+  relevant_opportunities: 0,
+  notes: '',
+};
+
+function normalizePayload(form) {
   return Object.fromEntries(
-    Object.entries(form).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+    Object.entries(form).map(([key, value]) => {
+      if (typeof value === 'string') {
+        return [key, value.trim()];
+      }
+      return [key, value];
+    })
   );
+}
+
+function cleanEmptyValues(payload) {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== '' && value !== null && value !== undefined));
 }
 
 function formatDate(value) {
   if (!value) return '—';
   try {
     return new Intl.DateTimeFormat('fa-IR').format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  try {
+    return new Intl.DateTimeFormat('fa-IR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value));
   } catch {
     return value;
   }
@@ -70,10 +125,17 @@ function isDeadlineSoon(deadlineDate) {
   return diffDays >= 0 && diffDays <= 7;
 }
 
+function getLastScanText(lastScan) {
+  if (!lastScan) return 'هنوز ثبت نشده';
+  return `${formatDate(lastScan.scan_date)} — ${scanStatusLabels[lastScan.status] || lastScan.status}`;
+}
+
 export default function TenderMonitor({ user, onSignOut }) {
   const [opportunities, setOpportunities] = useState([]);
   const [searchRules, setSearchRules] = useState([]);
+  const [scanLogs, setScanLogs] = useState([]);
   const [form, setForm] = useState(defaultForm);
+  const [scanForm, setScanForm] = useState(defaultScanForm);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -82,6 +144,7 @@ export default function TenderMonitor({ user, onSignOut }) {
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingScan, setSavingScan] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -89,14 +152,16 @@ export default function TenderMonitor({ user, onSignOut }) {
     setLoading(true);
     setError('');
     try {
-      const [opportunityData, ruleData] = await Promise.all([
+      const [opportunityData, ruleData, scanData] = await Promise.all([
         listOpportunities(activeFilters),
         listSearchRules().catch(() => []),
+        listScanLogs(8).catch(() => []),
       ]);
       setOpportunities(opportunityData);
       setSearchRules(ruleData);
+      setScanLogs(scanData);
     } catch (err) {
-      setError('خطا در دریافت اطلاعات. لطفاً اتصال به API و Supabase را بررسی کنید.');
+      setError('خطا در دریافت اطلاعات. لطفاً ورود، API، Supabase و جدول tender_scan_logs را بررسی کنید.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -107,6 +172,8 @@ export default function TenderMonitor({ user, onSignOut }) {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const lastScan = scanLogs[0];
 
   const summary = useMemo(() => {
     return {
@@ -124,6 +191,10 @@ export default function TenderMonitor({ user, onSignOut }) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateScanForm(field, value) {
+    setScanForm((current) => ({ ...current, [field]: value }));
+  }
+
   function updateFilter(field, value) {
     setFilters((current) => ({ ...current, [field]: value }));
   }
@@ -135,7 +206,7 @@ export default function TenderMonitor({ user, onSignOut }) {
     setSuccessMessage('');
 
     try {
-      const payload = normalizeFormPayload(form);
+      const payload = cleanEmptyValues(normalizePayload(form));
       if (!payload.title) {
         throw new Error('Title is required');
       }
@@ -149,6 +220,33 @@ export default function TenderMonitor({ user, onSignOut }) {
       console.error(err);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleScanSubmit(event) {
+    event.preventDefault();
+    setSavingScan(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const payload = cleanEmptyValues(normalizePayload(scanForm));
+      payload.total_found = Number(payload.total_found || 0);
+      payload.new_opportunities = Number(payload.new_opportunities || 0);
+      payload.relevant_opportunities = Number(payload.relevant_opportunities || 0);
+      payload.checked_opportunity_types = ['tender', 'price_inquiry', 'inquiry'];
+      payload.checked_keywords = ['relay', 'feeder', 'substation', 'capacitor'];
+      payload.checked_regions = ['south', 'semnan', 'all_iran'];
+
+      await createScanLog(payload);
+      setScanForm({ ...defaultScanForm, scan_date: todayIso() });
+      setSuccessMessage('نتیجه پایش روزانه با موفقیت ثبت شد.');
+      await loadData();
+    } catch (err) {
+      setError('ثبت گزارش پایش انجام نشد. جدول tender_scan_logs و اتصال backend را بررسی کنید.');
+      console.error(err);
+    } finally {
+      setSavingScan(false);
     }
   }
 
@@ -195,12 +293,13 @@ export default function TenderMonitor({ user, onSignOut }) {
 
   return (
     <main className="app-shell" dir="rtl">
-      <section className="hero-card">
+      <section className="hero-card hero-card-rev1c">
         <div>
-          <p className="eyebrow">Niroban Rev 1B</p>
+          <p className="eyebrow">Niroban Rev 1C</p>
           <h1>نیروبان</h1>
           <p className="hero-subtitle">
-            داشبورد فارسی پایش مناقصات، استعلام قیمت و استعلام‌های مرتبط با تجهیزات برق برای گسترش انرژی.
+            سامانه پایش روزانه مناقصات و استعلام‌های صنعت برق برای گسترش انرژی. تمرکز این نسخه روی ثبت، کنترل و گزارش‌گیری
+            فرآیند بررسی روزانه وب‌سایت خصوصی مناقصات است.
           </p>
         </div>
         <div className="hero-actions">
@@ -223,6 +322,37 @@ export default function TenderMonitor({ user, onSignOut }) {
           {error || successMessage}
         </section>
       )}
+
+      <section className="monitoring-panel panel">
+        <div className="panel-header monitoring-header">
+          <div>
+            <h2>پایش روزانه مناقصات و استعلام‌ها</h2>
+            <p>
+              وب‌سایت هدف عمومی نیست و ابتدا نیاز به ورود دارد. در Rev 1C نتیجه بررسی روزانه ثبت می‌شود؛ در Rev 1D اتصال
+              نیمه‌خودکار به وب‌سایت با Playwright بررسی خواهد شد.
+            </p>
+          </div>
+          <div className={`scan-status-badge scan-status-${lastScan?.status || 'pending'}`}>
+            <span>آخرین پایش</span>
+            <strong>{getLastScanText(lastScan)}</strong>
+          </div>
+        </div>
+
+        <div className="target-grid">
+          <article className="target-card">
+            <span>نوع فرصت‌ها</span>
+            <strong>{targetOpportunityTypes.join('، ')}</strong>
+          </article>
+          <article className="target-card">
+            <span>کلمات کلیدی</span>
+            <strong>{targetKeywords.join('، ')}</strong>
+          </article>
+          <article className="target-card">
+            <span>محدوده بررسی</span>
+            <strong>شرکت‌های برق منطقه‌ای و توزیع نیروی برق سراسر ایران، با اولویت جنوب کشور و سمنان</strong>
+          </article>
+        </div>
+      </section>
 
       <section className="summary-grid">
         <article className="summary-card">
@@ -247,12 +377,180 @@ export default function TenderMonitor({ user, onSignOut }) {
         </article>
       </section>
 
+      <section className="content-grid rev1c-grid">
+        <article className="panel form-panel">
+          <div className="panel-header">
+            <div>
+              <h2>ثبت نتیجه پایش روزانه</h2>
+              <p>پس از بررسی وب‌سایت خصوصی، نتیجه پایش امروز را اینجا ثبت کنید.</p>
+            </div>
+          </div>
+
+          <form className="form-grid" onSubmit={handleScanSubmit}>
+            <label>
+              تاریخ پایش
+              <input type="date" value={scanForm.scan_date} onChange={(event) => updateScanForm('scan_date', event.target.value)} />
+            </label>
+
+            <label>
+              وضعیت پایش
+              <select value={scanForm.status} onChange={(event) => updateScanForm('status', event.target.value)}>
+                {Object.entries(scanStatusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              روش پایش
+              <select value={scanForm.scan_mode} onChange={(event) => updateScanForm('scan_mode', event.target.value)}>
+                {Object.entries(scanModeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              منبع بررسی‌شده
+              <input
+                value={scanForm.source_name}
+                onChange={(event) => updateScanForm('source_name', event.target.value)}
+                placeholder="سامانه خصوصی مناقصات"
+              />
+            </label>
+
+            <label>
+              کل موارد یافت‌شده
+              <input
+                type="number"
+                min="0"
+                value={scanForm.total_found}
+                onChange={(event) => updateScanForm('total_found', event.target.value)}
+              />
+            </label>
+
+            <label>
+              فرصت‌های جدید
+              <input
+                type="number"
+                min="0"
+                value={scanForm.new_opportunities}
+                onChange={(event) => updateScanForm('new_opportunities', event.target.value)}
+              />
+            </label>
+
+            <label>
+              فرصت‌های مرتبط
+              <input
+                type="number"
+                min="0"
+                value={scanForm.relevant_opportunities}
+                onChange={(event) => updateScanForm('relevant_opportunities', event.target.value)}
+              />
+            </label>
+
+            <label>
+              لینک منبع
+              <input
+                value={scanForm.source_url}
+                onChange={(event) => updateScanForm('source_url', event.target.value)}
+                placeholder="https://..."
+              />
+            </label>
+
+            <label className="full-width">
+              یادداشت پایش
+              <textarea
+                value={scanForm.notes}
+                onChange={(event) => updateScanForm('notes', event.target.value)}
+                placeholder="مثلاً ورود موفق بود، کپچا وجود داشت، یا فرصت جدید مرتبط پیدا شد."
+                rows="4"
+              />
+            </label>
+
+            <button className="primary-button full-width" type="submit" disabled={savingScan}>
+              {savingScan ? 'در حال ثبت...' : 'ثبت گزارش پایش امروز'}
+            </button>
+          </form>
+        </article>
+
+        <article className="panel rules-panel">
+          <div className="panel-header">
+            <div>
+              <h2>کلمات کلیدی و مناطق هدف</h2>
+              <p>این موارد معیار اصلی پایش روزانه هستند.</p>
+            </div>
+          </div>
+
+          <div className="keyword-list">
+            {searchRules.length === 0 ? (
+              <span className="empty-state">هنوز کلمه کلیدی دریافت نشده است.</span>
+            ) : (
+              searchRules.map((rule) => (
+                <span className="keyword-chip" key={rule.id}>
+                  {rule.keyword_fa}
+                  {rule.keyword_en ? <small>{rule.keyword_en}</small> : null}
+                </span>
+              ))
+            )}
+          </div>
+
+          <div className="region-priority-box">
+            <h3>اولویت جغرافیایی</h3>
+            <ul>
+              {targetRegions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section className="panel scan-log-panel">
+        <div className="panel-header table-header">
+          <div>
+            <h2>گزارش پایش‌های اخیر</h2>
+            <p>این بخش نشان می‌دهد که بررسی روزانه انجام شده یا نیازمند ورود/کپچا بوده است.</p>
+          </div>
+          <button className="secondary-button" onClick={() => loadData(filters)} disabled={loading}>
+            {loading ? 'در حال دریافت...' : 'به‌روزرسانی'}
+          </button>
+        </div>
+
+        <div className="scan-log-list">
+          {scanLogs.length === 0 ? (
+            <p className="empty-state">هنوز گزارشی برای پایش روزانه ثبت نشده است.</p>
+          ) : (
+            scanLogs.map((log) => (
+              <article className="scan-log-item" key={log.id}>
+                <div>
+                  <strong>{formatDate(log.scan_date)}</strong>
+                  <span>{log.source_name || 'سامانه خصوصی مناقصات'}</span>
+                  {log.notes ? <p>{log.notes}</p> : null}
+                </div>
+                <div className="scan-log-metrics">
+                  <span>{scanStatusLabels[log.status] || log.status}</span>
+                  <small>کل: {log.total_found ?? 0}</small>
+                  <small>جدید: {log.new_opportunities ?? 0}</small>
+                  <small>مرتبط: {log.relevant_opportunities ?? 0}</small>
+                  <small>ثبت: {formatDateTime(log.created_at)}</small>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
       <section className="content-grid">
         <article className="panel form-panel">
           <div className="panel-header">
             <div>
               <h2>ثبت فرصت جدید</h2>
-              <p>در Rev 1B فرصت‌ها خصوصی و فقط پس از ورود ثبت می‌شوند.</p>
+              <p>فرصت‌های پیدا شده در بررسی روزانه را اینجا ثبت کنید.</p>
             </div>
           </div>
 
@@ -382,26 +680,20 @@ export default function TenderMonitor({ user, onSignOut }) {
           </form>
         </article>
 
-        <article className="panel rules-panel">
+        <article className="panel guide-panel">
           <div className="panel-header">
             <div>
-              <h2>کلمات کلیدی فعال</h2>
-              <p>این کلمات در Rev 1B برای پایش خودکار استفاده می‌شوند.</p>
+              <h2>چک‌لیست بررسی روزانه</h2>
+              <p>این چک‌لیست فعلاً دستی است و در Rev 1D پایه اتصال نیمه‌خودکار خواهد شد.</p>
             </div>
           </div>
-
-          <div className="keyword-list">
-            {searchRules.length === 0 ? (
-              <span className="empty-state">هنوز کلمه کلیدی دریافت نشده است.</span>
-            ) : (
-              searchRules.map((rule) => (
-                <span className="keyword-chip" key={rule.id}>
-                  {rule.keyword_fa}
-                  {rule.keyword_en ? <small>{rule.keyword_en}</small> : null}
-                </span>
-              ))
-            )}
-          </div>
+          <ol className="daily-checklist">
+            <li>ورود به وب‌سایت خصوصی مناقصات با حساب مجاز.</li>
+            <li>بررسی مناقصه‌ها، استعلام قیمت و استعلام‌ها.</li>
+            <li>جستجوی کلمات رله، فیدر، پست برق و خازن.</li>
+            <li>اولویت دادن به شرکت‌های برق منطقه‌ای و توزیع جنوب کشور و سمنان.</li>
+            <li>ثبت فرصت‌های مرتبط و ثبت نتیجه پایش روزانه در نیروبان.</li>
+          </ol>
         </article>
       </section>
 

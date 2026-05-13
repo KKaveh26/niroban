@@ -35,7 +35,7 @@ function LoginScreen() {
     return (
       <main className="login-shell" dir="rtl">
         <section className="login-card">
-          <p className="eyebrow">Niroban Rev 1B</p>
+          <p className="eyebrow">Niroban Rev 1C</p>
           <h1>نیروبان</h1>
           <div className="message message-error">
             تنظیمات ورود کامل نیست. متغیرهای VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY را در Vercel یا فایل محلی تنظیم کنید.
@@ -48,9 +48,9 @@ function LoginScreen() {
   return (
     <main className="login-shell" dir="rtl">
       <section className="login-card">
-        <p className="eyebrow">Niroban Rev 1B</p>
+        <p className="eyebrow">Niroban Rev 1C</p>
         <h1>نیروبان</h1>
-        <p className="hero-subtitle">ورود خصوصی برای داشبورد پایش مناقصات و استعلام‌های گسترش انرژی.</p>
+        <p className="hero-subtitle">ورود خصوصی برای سامانه پایش روزانه مناقصات و استعلام‌های گسترش انرژی.</p>
 
         {error ? <div className="message message-error">{error}</div> : null}
 
@@ -128,7 +128,7 @@ export default function App() {
     return (
       <main className="login-shell" dir="rtl">
         <section className="login-card">
-          <p className="eyebrow">Niroban Rev 1B</p>
+          <p className="eyebrow">Niroban Rev 1C</p>
           <h1>نیروبان</h1>
           <p className="hero-subtitle">در حال بررسی وضعیت ورود...</p>
         </section>
