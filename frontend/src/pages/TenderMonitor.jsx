@@ -70,7 +70,7 @@ function isDeadlineSoon(deadlineDate) {
   return diffDays >= 0 && diffDays <= 7;
 }
 
-export default function TenderMonitor() {
+export default function TenderMonitor({ user, onSignOut }) {
   const [opportunities, setOpportunities] = useState([]);
   const [searchRules, setSearchRules] = useState([]);
   const [form, setForm] = useState(defaultForm);
@@ -197,15 +197,24 @@ export default function TenderMonitor() {
     <main className="app-shell" dir="rtl">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Niroban Rev 1A</p>
+          <p className="eyebrow">Niroban Rev 1B</p>
           <h1>نیروبان</h1>
           <p className="hero-subtitle">
             داشبورد فارسی پایش مناقصات، استعلام قیمت و استعلام‌های مرتبط با تجهیزات برق برای گسترش انرژی.
           </p>
         </div>
-        <div className="api-pill">
-          <span>API</span>
-          <strong>{getApiUrl()}</strong>
+        <div className="hero-actions">
+          <div className="user-pill">
+            <span>کاربر وارد شده</span>
+            <strong>{user?.email || '—'}</strong>
+          </div>
+          <div className="api-pill">
+            <span>API</span>
+            <strong>{getApiUrl()}</strong>
+          </div>
+          <button className="ghost-button logout-button" type="button" onClick={onSignOut}>
+            خروج
+          </button>
         </div>
       </section>
 
@@ -243,7 +252,7 @@ export default function TenderMonitor() {
           <div className="panel-header">
             <div>
               <h2>ثبت فرصت جدید</h2>
-              <p>در Rev 1A فرصت‌ها به‌صورت دستی وارد می‌شوند.</p>
+              <p>در Rev 1B فرصت‌ها خصوصی و فقط پس از ورود ثبت می‌شوند.</p>
             </div>
           </div>
 

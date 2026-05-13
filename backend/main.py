@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -13,6 +13,11 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+ALLOWED_EMAILS = [
+    email.strip().lower()
+    for email in os.getenv("ALLOWED_EMAILS", "").split(",")
+    if email.strip()
+]
 
 OpportunityType = Literal["tender", "price_inquiry", "inquiry"]
 OpportunityStatus = Literal["new", "reviewed", "relevant", "not_relevant", "applied", "missed"]
@@ -23,7 +28,7 @@ RuleRegionPriority = Literal["south", "semnan", "other", "all"]
 app = FastAPI(
     title="Niroban API",
     description="Persian tender monitoring API for electrical companies.",
-    version="1.0.0-rev1a",
+    version="1.0.0-rev1b",
 )
 
 app.add_middleware(
@@ -40,12 +45,16 @@ app.add_middleware(
 )
 
 
-def supabase_headers(prefer_return: bool = False) -> dict[str, str]:
+def check_supabase_config() -> None:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise HTTPException(
             status_code=500,
             detail="Supabase environment variables are missing. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.",
         )
+
+
+def supabase_headers(prefer_return: bool = False) -> dict[str, str]:
+    check_supabase_config()
 
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
@@ -59,6 +68,34 @@ def supabase_headers(prefer_return: bool = False) -> dict[str, str]:
 
 def supabase_table_url(table_name: str) -> str:
     return f"{SUPABASE_URL}/rest/v1/{table_name}"
+
+
+async def require_user(authorization: Optional[str] = Header(default=None, alias="Authorization")) -> dict:
+    """Verify the Supabase Auth access token and optionally restrict allowed emails."""
+    check_supabase_config()
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Login required")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(
+            f"{SUPABASE_URL}/auth/v1/user",
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": authorization,
+            },
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=401, detail="Invalid or expired login session")
+
+    user = response.json()
+    user_email = (user.get("email") or "").lower()
+
+    if ALLOWED_EMAILS and user_email not in ALLOWED_EMAILS:
+        raise HTTPException(status_code=403, detail="This email is not allowed to access Niroban")
+
+    return user
 
 
 class OpportunityCreate(BaseModel):
@@ -104,7 +141,7 @@ def root() -> dict[str, str]:
     return {
         "app": "Niroban API",
         "status": "running",
-        "revision": "Rev 1A",
+        "revision": "Rev 1B",
     }
 
 
@@ -116,12 +153,22 @@ def health() -> dict[str, str]:
     }
 
 
+@app.get("/me")
+async def me(current_user: dict = Depends(require_user)) -> dict:
+    return {
+        "id": current_user.get("id"),
+        "email": current_user.get("email"),
+        "role": current_user.get("role"),
+    }
+
+
 @app.get("/opportunities")
 async def list_opportunities(
     status: Optional[OpportunityStatus] = None,
     opportunity_type: Optional[OpportunityType] = None,
     region_priority: Optional[RegionPriority] = None,
     search: Optional[str] = Query(default=None, description="Search title, company, province, or keyword"),
+    current_user: dict = Depends(require_user),
 ) -> list[dict]:
     params: dict[str, str] = {
         "select": "*",
@@ -158,7 +205,7 @@ async def list_opportunities(
 
 
 @app.post("/opportunities", status_code=201)
-async def create_opportunity(payload: OpportunityCreate) -> dict:
+async def create_opportunity(payload: OpportunityCreate, current_user: dict = Depends(require_user)) -> dict:
     data = payload.model_dump(mode="json", exclude_none=True)
 
     async with httpx.AsyncClient(timeout=20) as client:
@@ -176,7 +223,11 @@ async def create_opportunity(payload: OpportunityCreate) -> dict:
 
 
 @app.patch("/opportunities/{opportunity_id}")
-async def update_opportunity(opportunity_id: str, payload: OpportunityUpdate) -> dict:
+async def update_opportunity(
+    opportunity_id: str,
+    payload: OpportunityUpdate,
+    current_user: dict = Depends(require_user),
+) -> dict:
     data = payload.model_dump(mode="json", exclude_none=True)
     data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -198,7 +249,7 @@ async def update_opportunity(opportunity_id: str, payload: OpportunityUpdate) ->
 
 
 @app.delete("/opportunities/{opportunity_id}")
-async def delete_opportunity(opportunity_id: str) -> dict[str, str]:
+async def delete_opportunity(opportunity_id: str, current_user: dict = Depends(require_user)) -> dict[str, str]:
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.delete(
             supabase_table_url("tender_opportunities"),
@@ -213,7 +264,7 @@ async def delete_opportunity(opportunity_id: str) -> dict[str, str]:
 
 
 @app.get("/search-rules")
-async def list_search_rules(active: Optional[bool] = True) -> list[dict]:
+async def list_search_rules(active: Optional[bool] = True, current_user: dict = Depends(require_user)) -> list[dict]:
     params: dict[str, str] = {
         "select": "*",
         "order": "created_at.desc",
@@ -235,7 +286,7 @@ async def list_search_rules(active: Optional[bool] = True) -> list[dict]:
 
 
 @app.post("/search-rules", status_code=201)
-async def create_search_rule(payload: SearchRuleCreate) -> dict:
+async def create_search_rule(payload: SearchRuleCreate, current_user: dict = Depends(require_user)) -> dict:
     data = payload.model_dump(mode="json", exclude_none=True)
 
     async with httpx.AsyncClient(timeout=20) as client:

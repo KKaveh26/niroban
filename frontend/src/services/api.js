@@ -1,9 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+let accessToken = '';
+
+export function setAccessToken(token) {
+  accessToken = token || '';
+}
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -23,6 +29,10 @@ async function request(path, options = {}) {
 
 export function getApiUrl() {
   return API_URL;
+}
+
+export function getMe() {
+  return request('/me');
 }
 
 export function listOpportunities(filters = {}) {

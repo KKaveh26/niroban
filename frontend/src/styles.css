@@ -408,3 +408,62 @@ tr:last-child td {
     padding: 18px;
   }
 }
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(520px, 100%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.12);
+  padding: 34px;
+}
+
+.login-card h1 {
+  margin-bottom: 14px;
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.hero-actions {
+  display: grid;
+  gap: 12px;
+  min-width: min(100%, 380px);
+}
+
+.user-pill {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.user-pill span {
+  display: block;
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.user-pill strong {
+  direction: ltr;
+  display: block;
+  color: #0f172a;
+  word-break: break-all;
+  text-align: left;
+}
+
+.logout-button {
+  width: 100%;
+}
