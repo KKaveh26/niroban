@@ -1,76 +1,68 @@
-# Niroban — Rev 1C
+# Niroban — Rev 1D
 
 Persian tender monitoring app for Gostaresh Energy.
 
-## Rev 1C purpose
+Rev 1D adds the semi-automatic website checking workflow for the private tender website:
 
-Rev 1C adds the real daily monitoring workflow:
+```text
+https://setadiran.ir/setad/cms
+```
 
-- Daily check log for a private tender website
-- Manual registration of daily scan result
-- Scan status: success, failed, login required, captcha required
-- Target opportunity types: tenders, price inquiry only, inquiries
-- Target keywords: relay, feeder, substation, capacitor
-- Target regions: all Iran, with priority for south of Iran and Semnan
-- Protected backend API through Supabase Auth
+## What Rev 1D adds
 
-## Backend
+- Keeps Rev 1B private login and protected API.
+- Keeps Rev 1C daily scan logs.
+- Adds a local Playwright scanner template for Setad Iran.
+- The scanner is semi-automatic: the user logs in manually, then the script searches and captures candidate opportunities.
+- No password is stored in the app or repository.
+- Captcha/OTP is not bypassed; the user completes it manually.
+
+## Important architecture
+
+The Playwright scanner should run locally on an authorized computer, not on Vercel. Railway can host the API, but interactive login/captcha is safer locally.
+
+```text
+Local Playwright scanner → output JSON → import to Niroban API → Supabase
+```
+
+## Scanner setup
 
 ```powershell
-cd backend
+cd scanner
+python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python -m uvicorn main:app --reload --port 8000
+python -m playwright install chromium
+copy .env.example .env
+copy setad_config.example.json setad_config.json
 ```
 
-Required backend variables:
+Edit `scanner/.env` and set:
 
 ```env
-SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
-SUPABASE_SERVICE_KEY=sb_secret_...
-FRONTEND_URL=http://localhost:5173
-ALLOWED_EMAILS=alireza.yavarian@gmail.com,kiamarskaveh@yahoo.com
+NIROBAN_API_URL=https://niroban-production.up.railway.app
+VITE_SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
+NIROBAN_EMAIL=kiamarskaveh@yahoo.com
 ```
 
-## Frontend
+Run the assisted scan:
 
 ```powershell
-cd frontend
-npm install
-npm run dev
+python setad_semiauto.py
 ```
 
-Required frontend variables:
+Then import the generated result:
 
-```env
-VITE_API_URL=http://localhost:8000
-VITE_SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...
-```
-
-## Deployment
-
-Railway backend:
-
-```env
-SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
-SUPABASE_SERVICE_KEY=sb_secret_...
-FRONTEND_URL=https://niroban.vercel.app
-ALLOWED_EMAILS=alireza.yavarian@gmail.com,kiamarskaveh@yahoo.com
-```
-
-Vercel frontend:
-
-```env
-VITE_API_URL=https://niroban-production.up.railway.app
-VITE_SUPABASE_URL=https://qfmrryqtxxhjrxfatnuj.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...
+```powershell
+python import_to_niroban.py output\setad_opportunities.json
 ```
 
 ## Revision table
 
 | Rev | Date | Description |
 |---|---:|---|
-| Rev 1A | 2026-05-13 | Manual Persian tender dashboard |
+| Rev 1A | 2026-05-13 | Manual Persian tender opportunity dashboard |
 | Rev 1B | 2026-05-13 | Private login and protected backend API |
 | Rev 1C | 2026-05-13 | Daily monitoring workflow and scan logs |
+| Rev 1D | 2026-05-13 | Semi-automatic Setad Iran scanner template with Playwright |

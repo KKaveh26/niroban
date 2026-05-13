@@ -67,9 +67,9 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const defaultScanForm = {
   scan_date: todayIso(),
-  source_name: 'سامانه خصوصی مناقصات و استعلام‌ها',
-  source_url: '',
-  scan_mode: 'manual',
+  source_name: 'سامانه ستاد ایران',
+  source_url: 'https://setadiran.ir/setad/cms',
+  scan_mode: 'semi_automatic',
   status: 'success',
   total_found: 0,
   new_opportunities: 0,
@@ -293,13 +293,12 @@ export default function TenderMonitor({ user, onSignOut }) {
 
   return (
     <main className="app-shell" dir="rtl">
-      <section className="hero-card hero-card-rev1c">
+      <section className="hero-card hero-card-rev1d">
         <div>
-          <p className="eyebrow">Niroban Rev 1C</p>
+          <p className="eyebrow">Niroban Rev 1D</p>
           <h1>نیروبان</h1>
           <p className="hero-subtitle">
-            سامانه پایش روزانه مناقصات و استعلام‌های صنعت برق برای گسترش انرژی. تمرکز این نسخه روی ثبت، کنترل و گزارش‌گیری
-            فرآیند بررسی روزانه وب‌سایت خصوصی مناقصات است.
+            سامانه پایش روزانه مناقصات و استعلام‌های صنعت برق برای گسترش انرژی. در Rev 1D تمرکز روی پایش نیمه‌خودکار سامانه ستاد ایران و ثبت خروجی بررسی روزانه است.
           </p>
         </div>
         <div className="hero-actions">
@@ -328,8 +327,7 @@ export default function TenderMonitor({ user, onSignOut }) {
           <div>
             <h2>پایش روزانه مناقصات و استعلام‌ها</h2>
             <p>
-              وب‌سایت هدف عمومی نیست و ابتدا نیاز به ورود دارد. در Rev 1C نتیجه بررسی روزانه ثبت می‌شود؛ در Rev 1D اتصال
-              نیمه‌خودکار به وب‌سایت با Playwright بررسی خواهد شد.
+              وب‌سایت هدف عمومی نیست و ابتدا نیاز به ورود دارد. در Rev 1D پایش نیمه‌خودکار با Playwright آماده می‌شود: کاربر وارد سامانه می‌شود، سپس اسکریپت کلمات کلیدی را جست‌وجو و خروجی قابل ثبت در نیروبان تولید می‌کند.
             </p>
           </div>
           <div className={`scan-status-badge scan-status-${lastScan?.status || 'pending'}`}>
@@ -350,6 +348,10 @@ export default function TenderMonitor({ user, onSignOut }) {
           <article className="target-card">
             <span>محدوده بررسی</span>
             <strong>شرکت‌های برق منطقه‌ای و توزیع نیروی برق سراسر ایران، با اولویت جنوب کشور و سمنان</strong>
+          </article>
+          <article className="target-card">
+            <span>وب‌سایت هدف Rev 1D</span>
+            <strong>https://setadiran.ir/setad/cms — نیازمند ورود کاربر و بررسی نیمه‌خودکار</strong>
           </article>
         </div>
       </section>
@@ -382,7 +384,7 @@ export default function TenderMonitor({ user, onSignOut }) {
           <div className="panel-header">
             <div>
               <h2>ثبت نتیجه پایش روزانه</h2>
-              <p>پس از بررسی وب‌سایت خصوصی، نتیجه پایش امروز را اینجا ثبت کنید.</p>
+              <p>پس از اجرای اسکریپت نیمه‌خودکار یا بررسی دستی سامانه ستاد ایران، نتیجه پایش امروز را اینجا ثبت کنید.</p>
             </div>
           </div>
 
@@ -419,7 +421,7 @@ export default function TenderMonitor({ user, onSignOut }) {
               <input
                 value={scanForm.source_name}
                 onChange={(event) => updateScanForm('source_name', event.target.value)}
-                placeholder="سامانه خصوصی مناقصات"
+                placeholder="سامانه ستاد ایران"
               />
             </label>
 
@@ -529,7 +531,7 @@ export default function TenderMonitor({ user, onSignOut }) {
               <article className="scan-log-item" key={log.id}>
                 <div>
                   <strong>{formatDate(log.scan_date)}</strong>
-                  <span>{log.source_name || 'سامانه خصوصی مناقصات'}</span>
+                  <span>{log.source_name || 'سامانه ستاد ایران'}</span>
                   {log.notes ? <p>{log.notes}</p> : null}
                 </div>
                 <div className="scan-log-metrics">

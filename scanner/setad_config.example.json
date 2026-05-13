@@ -1,0 +1,35 @@
+{
+  "start_url": "https://setadiran.ir/setad/cms",
+  "customer_name": "Gostaresh Energy",
+  "source_name": "سامانه ستاد ایران",
+  "opportunity_types": [
+    { "value": "tender", "labels": ["مناقصه", "مناقصات", "Tender", "Tenders"] },
+    { "value": "price_inquiry", "labels": ["استعلام قیمت", "استعلام بها", "Price Inquiry"] },
+    { "value": "inquiry", "labels": ["استعلام", "Inquiries", "Inquiry"] }
+  ],
+  "keywords": [
+    { "en": "relay", "fa": "رله" },
+    { "en": "feeder", "fa": "فیدر" },
+    { "en": "substation", "fa": "پست برق" },
+    { "en": "capacitor", "fa": "خازن" },
+    { "en": "protection relay", "fa": "رله حفاظتی" },
+    { "en": "capacitor bank", "fa": "بانک خازنی" }
+  ],
+  "priority_regions": ["سمنان", "Semnan", "خوزستان", "بوشهر", "هرمزگان", "فارس", "کرمان", "سیستان", "کهگیلویه"],
+  "search_input_selectors": [
+    "input[type='search']",
+    "input[placeholder*='جست']",
+    "input[placeholder*='عنوان']",
+    "input:not([type='password']):not([type='hidden'])",
+    "textarea"
+  ],
+  "result_container_selectors": [
+    "table tbody tr",
+    "table tr",
+    ".ant-table-row",
+    ".MuiTableRow-root",
+    ".card",
+    ".list-item",
+    "li"
+  ]
+}

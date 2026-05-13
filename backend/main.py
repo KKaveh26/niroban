@@ -30,7 +30,7 @@ ScanStatus = Literal["pending", "success", "failed", "login_required", "captcha_
 app = FastAPI(
     title="Niroban API",
     description="Persian tender monitoring API for electrical companies.",
-    version="1.0.0-rev1c",
+    version="1.0.0-rev1d",
 )
 
 app.add_middleware(
@@ -172,7 +172,7 @@ def root() -> dict[str, str]:
     return {
         "app": "Niroban API",
         "status": "running",
-        "revision": "Rev 1C",
+        "revision": "Rev 1D",
     }
 
 
