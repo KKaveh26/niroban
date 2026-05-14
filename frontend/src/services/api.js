@@ -82,3 +82,11 @@ export function createScanLog(data) {
     body: JSON.stringify(data),
   });
 }
+
+
+export function runSetadAccessTest(data = {}) {
+  return request('/setad/access-test', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

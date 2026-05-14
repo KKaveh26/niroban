@@ -1,7 +1,7 @@
 {
   "name": "niroban-frontend",
   "private": true,
-  "version": "1.0.0-rev1d",
+  "version": "1.0.0-rev1e",
   "type": "module",
   "scripts": {
     "dev": "vite",

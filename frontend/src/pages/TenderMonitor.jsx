@@ -7,6 +7,7 @@ import {
   listOpportunities,
   listScanLogs,
   listSearchRules,
+  runSetadAccessTest,
   updateOpportunity,
 } from '../services/api.js';
 
@@ -145,6 +146,8 @@ export default function TenderMonitor({ user, onSignOut }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingScan, setSavingScan] = useState(false);
+  const [testingSetad, setTestingSetad] = useState(false);
+  const [setadTestResult, setSetadTestResult] = useState(null);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -250,6 +253,28 @@ export default function TenderMonitor({ user, onSignOut }) {
     }
   }
 
+  async function handleSetadAccessTest() {
+    setTestingSetad(true);
+    setError('');
+    setSuccessMessage('');
+    setSetadTestResult(null);
+
+    try {
+      const result = await runSetadAccessTest({
+        source_url: 'https://setadiran.ir/setad/cms',
+        run_browser_check: false,
+      });
+      setSetadTestResult(result);
+      setSuccessMessage(result.message_fa || 'تست اتصال به سامانه ستاد ایران انجام شد.');
+      await loadData();
+    } catch (err) {
+      setError('تست اتصال به سامانه ستاد ایران انجام نشد. لاگ Railway و متغیرهای backend را بررسی کنید.');
+      console.error(err);
+    } finally {
+      setTestingSetad(false);
+    }
+  }
+
   async function handleStatusChange(id, status) {
     setError('');
     try {
@@ -295,10 +320,10 @@ export default function TenderMonitor({ user, onSignOut }) {
     <main className="app-shell" dir="rtl">
       <section className="hero-card hero-card-rev1d">
         <div>
-          <p className="eyebrow">Niroban Rev 1D</p>
+          <p className="eyebrow">Niroban Rev 1E</p>
           <h1>نیروبان</h1>
           <p className="hero-subtitle">
-            سامانه پایش روزانه مناقصات و استعلام‌های صنعت برق برای گسترش انرژی. در Rev 1D تمرکز روی پایش نیمه‌خودکار سامانه ستاد ایران و ثبت خروجی بررسی روزانه است.
+            سامانه پایش روزانه مناقصات و استعلام‌های صنعت برق برای گسترش انرژی. در Rev 1E ابتدا بررسی می‌کنیم آیا سرور نیروبان می‌تواند سامانه ستاد ایران را از فضای ابری باز کند یا خیر.
           </p>
         </div>
         <div className="hero-actions">
@@ -327,7 +352,7 @@ export default function TenderMonitor({ user, onSignOut }) {
           <div>
             <h2>پایش روزانه مناقصات و استعلام‌ها</h2>
             <p>
-              وب‌سایت هدف عمومی نیست و ابتدا نیاز به ورود دارد. در Rev 1D پایش نیمه‌خودکار با Playwright آماده می‌شود: کاربر وارد سامانه می‌شود، سپس اسکریپت کلمات کلیدی را جست‌وجو و خروجی قابل ثبت در نیروبان تولید می‌کند.
+              وب‌سایت هدف عمومی نیست و ابتدا نیاز به ورود دارد. در Rev 1E تست اتصال ابری انجام می‌شود تا مشخص شود آیا مرحله بعد، یعنی ورود دستی کنترل‌شده از داخل نیروبان، روی زیرساخت ابری قابل انجام است یا نیاز به سرور/VPS جداگانه دارد.
             </p>
           </div>
           <div className={`scan-status-badge scan-status-${lastScan?.status || 'pending'}`}>
@@ -350,9 +375,30 @@ export default function TenderMonitor({ user, onSignOut }) {
             <strong>شرکت‌های برق منطقه‌ای و توزیع نیروی برق سراسر ایران، با اولویت جنوب کشور و سمنان</strong>
           </article>
           <article className="target-card">
-            <span>وب‌سایت هدف Rev 1D</span>
-            <strong>https://setadiran.ir/setad/cms — نیازمند ورود کاربر و بررسی نیمه‌خودکار</strong>
+            <span>وب‌سایت هدف Rev 1E</span>
+            <strong>https://setadiran.ir/setad/cms — تست اتصال ابری، سپس ورود دستی کنترل‌شده</strong>
           </article>
+        </div>
+
+        <div className="setad-test-box">
+          <div>
+            <h3>تست اتصال ابری به سامانه ستاد ایران</h3>
+            <p>
+              این تست از سمت backend نیروبان اجرا می‌شود. هدف آن فقط بررسی دسترسی شبکه و شناسایی صفحه ورود است؛ هیچ نام کاربری، رمز عبور، کپچا یا OTP ذخیره یا دور زده نمی‌شود.
+            </p>
+          </div>
+          <button className="primary-button" type="button" onClick={handleSetadAccessTest} disabled={testingSetad}>
+            {testingSetad ? 'در حال تست اتصال...' : 'تست اتصال به ستاد ایران'}
+          </button>
+          {setadTestResult ? (
+            <div className="setad-test-result">
+              <strong>{setadTestResult.message_fa}</strong>
+              <span>وضعیت HTTP: {setadTestResult.http_status || '—'}</span>
+              <span>صفحه ورود: {setadTestResult.login_detected ? 'تشخیص داده شد' : 'تشخیص داده نشد'}</span>
+              <span>کپچا/OTP: {setadTestResult.captcha_detected || setadTestResult.otp_detected ? 'محتمل است' : 'تشخیص داده نشد'}</span>
+              <span>تست مرورگر: {setadTestResult.browser_status || 'اجرا نشده'}</span>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -384,7 +430,7 @@ export default function TenderMonitor({ user, onSignOut }) {
           <div className="panel-header">
             <div>
               <h2>ثبت نتیجه پایش روزانه</h2>
-              <p>پس از اجرای اسکریپت نیمه‌خودکار یا بررسی دستی سامانه ستاد ایران، نتیجه پایش امروز را اینجا ثبت کنید.</p>
+              <p>پس از اجرای تست اتصال، اسکریپت نیمه‌خودکار یا بررسی دستی سامانه ستاد ایران، نتیجه پایش امروز را اینجا ثبت کنید.</p>
             </div>
           </div>
 
@@ -686,7 +732,7 @@ export default function TenderMonitor({ user, onSignOut }) {
           <div className="panel-header">
             <div>
               <h2>چک‌لیست بررسی روزانه</h2>
-              <p>این چک‌لیست فعلاً دستی است و در Rev 1D پایه اتصال نیمه‌خودکار خواهد شد.</p>
+              <p>این چک‌لیست در Rev 1E با تست اتصال ابری تکمیل می‌شود و پایه مرحله ورود دستی کنترل‌شده خواهد بود.</p>
             </div>
           </div>
           <ol className="daily-checklist">

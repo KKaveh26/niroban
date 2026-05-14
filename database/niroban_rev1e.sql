@@ -1,0 +1,4 @@
+-- Niroban Rev 1E: Setad cloud access test
+-- No new table is required.
+-- The /setad/access-test endpoint stores its result in existing tender_scan_logs.
+-- Required existing table: tender_scan_logs (created in Rev 1C).
